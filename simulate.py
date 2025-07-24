@@ -40,13 +40,13 @@ def package_coord(coord):
 #actual process
 start_point = np.array([0, 0, 0])
 
-def create_dataframe(start_point, no_of_rays, max_reflections, normals):
+def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, normals):
     ray_origins, ray_directions = generate_ray_lists(start_point, no_of_rays)
     ray_origins = np.array(ray_origins)
     ray_directions = np.array(ray_directions)
 
     id = [91500 for i in range(no_of_rays)]
-    start_strength = [100 for i in range(no_of_rays)]
+    start_strength = [start_strength for i in range(no_of_rays)]
     distance_arr = np.array([np.float64(0) for i in range(no_of_rays)])
     reflections = 0
     signal_factor =1
@@ -160,9 +160,20 @@ def create_dataframe(start_point, no_of_rays, max_reflections, normals):
     return data
 
 
+start_strength = input("What is the start strength of the rays you want to generate? Leave blank for 10,000: ")
+if start_strength == '':
+    start_strength = 10000
+no_of_rays = input("What is the number of rays you want to generate? Leave blank for 10: ")
+if no_of_rays == '':
+    no_of_rays = 10
+max_reflections = input("What is the maximum number of reflections you want your rays to simulate? Leave blank for 10: ")
+if max_reflections == '':
+    max_reflections = 10
+start_strength = int(start_strength)
+no_of_rays = int(no_of_rays)
+max_reflections = int(max_reflections)
 
-
-df = create_dataframe(start_point, no_of_rays=40, max_reflections=40, normals=normals)
+df = create_dataframe(start_point, start_strength=10000, no_of_rays=20, max_reflections=50, normals=normals)
 #print(df.to_string())
 
 df.to_csv('generated_ray_data.csv', index=False)

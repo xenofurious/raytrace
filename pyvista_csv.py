@@ -54,6 +54,19 @@ for index, row in raytrace_data.iterrows():
         print("a row was omitted for this")
 
 
+model_name = input("Enter the model you want to overlay over the simulation. Leave blank if you don't want to: ")
+if model_name != '':
+    model = pv.read(model_name)
+    pl.add_mesh(
+        model,
+        color='lightblue',
+        opacity=0.4,
+        specular=1.0,
+        smooth_shading=True
+    )
+
+
+
 
 
 ##############################

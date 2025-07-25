@@ -58,12 +58,10 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
         'start_strength': start_strength,
         'end_strength': [],
         'traversal_time_ns': [],
-        'start_point': start_point_packaged,
-        'end_point': [],
+        'start_point': start_point_packaged
     }
 
-
-    while reflections < max_reflections:
+    while reflections < max_reflections and np.sum(np.isfinite(ray_origins).all(axis=1))>0:
         ray_index_arr_total = np.array([i for i in range(no_of_rays)])
 
         #need to filter out the nans from ray_origins and ray_directions before we input them - since mesh.ray.intersects doesn't accept nans
@@ -72,10 +70,14 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
         filtered_ray_directions = ray_directions[mask]
 
 
+        #print(reflections)
+        #print(filtered_ray_origins)
+        #print(filtered_ray_directions)
+
         coord_arr, ray_index_arr, tri_index_arr = mesh.ray.intersects_location(
             filtered_ray_origins, filtered_ray_directions, multiple_hits=False
         )
-
+        #print("coord_arr =", coord_arr)
         no_of_nans = no_of_rays-len(coord_arr)
         arr_nans_vec = np.full((no_of_nans, 3), np.nan)
         arr_nans_float = np.array([np.nan for i in range(no_of_nans)])
@@ -140,23 +142,46 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
 
         coords_after = ray_origins
         new_distance_arr = coords_after-coords_before
+
+        # check for whether maximum distance has been exceeded
         mask = np.all(np.isnan(new_distance_arr), axis=1)
         new_distance_arr[mask] = [0, 0, 0]
         distance_arr += np.linalg.norm(new_distance_arr, axis=1)
+        distance_mask = (start_strength - distance_arr) <0
+        excess_distances = np.linalg.norm(new_distance_arr[distance_mask].copy(), axis=1)
+        distance_arr[distance_mask] -= excess_distances
 
-        if reflections != max_reflections:
-            title_a = 'interaction_type_'+str(reflections)
-            data[title_a] = ['2' for i in range(no_of_rays)]
-            title_b = 'point_' + str(reflections)
-        else:
-            title_b = 'end_point'
 
+        #print(reflections)
+        #print(start_strength-distance_arr)
+        #print(ray_origins)
+
+        # changing the coordinates with maximum distance to equal nan
+        if np.any(distance_mask):
+            ray_origins[distance_mask] = np.full((distance_mask.sum(), 3), np.nan)
+
+
+
+
+
+        #ray_origins[distance_mask] = np.full((len(distance_mask), 3), np.nan)
+
+        title_a = 'interaction_type_'+str(reflections)
+        data[title_a] = ['2' for i in range(no_of_rays)]
+        title_b = 'point_' + str(reflections)
         ray_origins_packaged = list(map(package_coord, ray_origins.tolist()))
-
         data[title_b] = ray_origins_packaged
+
+
     data['end_strength'] = (data['start_strength']-distance_arr*signal_factor).tolist() # alter later to match a realistic simulation model
     data['traversal_time_ns'] = (distance_arr*(10**9)/c).tolist()
     data = pd.DataFrame(data)
+
+    data['end_point'] = data.apply(
+        lambda row: next((val for val in reversed(row) if pd.notna(val)), np.nan),
+        axis=1
+    )
+
     return data
 
 
@@ -173,7 +198,7 @@ start_strength = int(start_strength)
 no_of_rays = int(no_of_rays)
 max_reflections = int(max_reflections)
 
-df = create_dataframe(start_point, start_strength=10000, no_of_rays=20, max_reflections=50, normals=normals)
+df = create_dataframe(start_point, start_strength, no_of_rays, max_reflections, normals=normals)
 #print(df.to_string())
 
 df.to_csv('generated_ray_data.csv', index=False)

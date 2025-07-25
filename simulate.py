@@ -36,10 +36,6 @@ def package_coord(coord):
     return return_str
 
 
-
-#actual process
-start_point = np.array([0, 0, 0])
-
 def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, normals):
     ray_origins, ray_directions = generate_ray_lists(start_point, no_of_rays)
     ray_origins = np.array(ray_origins)
@@ -69,15 +65,9 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
         filtered_ray_origins = ray_origins[mask]
         filtered_ray_directions = ray_directions[mask]
 
-
-        #print(reflections)
-        #print(filtered_ray_origins)
-        #print(filtered_ray_directions)
-
         coord_arr, ray_index_arr, tri_index_arr = mesh.ray.intersects_location(
             filtered_ray_origins, filtered_ray_directions, multiple_hits=False
         )
-        #print("coord_arr =", coord_arr)
         no_of_nans = no_of_rays-len(coord_arr)
         arr_nans_vec = np.full((no_of_nans, 3), np.nan)
         arr_nans_float = np.array([np.nan for i in range(no_of_nans)])
@@ -90,14 +80,10 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
         else:
             coord_arr = np.concatenate((coord_arr, arr_nans_vec), axis=0)
             tri_index_arr = np.concatenate((tri_index_arr, arr_nans_float), axis=0)
-        #print(coord_arr, arr_nans)
-        #print(tri_index_arr, arr_nans)
 
         ray_index_arr = np.concatenate((ray_index_arr, diff_rayindex), axis=0)
-        #print('ray indexes:', ray_index_arr, diff_rayindex, ray_index_arr_test)
 
-        #print('ray_indexes before:', ray_index_arr)
-        # sorting the fucking rays
+        # sorting the rays - due to parallel processing constraints, the rays are returned in a jumbled mess
         n = len(ray_index_arr)
         for i in range(n):
             for j in range(0, n - i - 1):
@@ -108,36 +94,22 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
                     coord_arr[j], coord_arr[j+1] = coord_arr[j+1], temp
                     temp = tri_index_arr[j].copy()
                     tri_index_arr[j], tri_index_arr[j + 1] = tri_index_arr[j + 1], temp
-        #print('ray_indexes after:', ray_index_arr)
 
         epsilon = 0.00001 #this is for avoiding floating_point errors/face collisions
-        #print('collision points:'+str(reflections), coord_arr)
 
         face_normals = np.full((no_of_rays, 3), np.nan)
         for x in range(no_of_rays):
             a = tri_index_arr[ray_index_arr[x]]
             if not np.isnan(a):
-                #print("index!!! =", a)
                 face_normals[x] = normals[int(a)]
 
-        #face_normals = np.array([normals[tri_index_arr[x]] for x in ray_index_arr])
-        #print(face_normals)
-
-
         dot_products = np.einsum('ij,ij->i', ray_directions, face_normals)[:, np.newaxis]
-        #print('face normals:', face_normals)
-        #print('dot products:', dot_products)
-
-        #print('ray directions before:'+str(reflections), ray_directions)
 
         coords_before = ray_origins
 
         ray_directions = ray_directions - 2 * dot_products * face_normals
         ray_origins = np.array([i for i in coord_arr])
-        #print('ray_origins:', ray_origins)
-        #print('ray_directions:', ray_directions)
         ray_origins += ray_directions*epsilon
-        #print('ray directions after:'+str(reflections), ray_directions)
         reflections += 1
 
         coords_after = ray_origins
@@ -151,20 +123,9 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
         excess_distances = np.linalg.norm(new_distance_arr[distance_mask].copy(), axis=1)
         distance_arr[distance_mask] -= excess_distances
 
-
-        #print(reflections)
-        #print(start_strength-distance_arr)
-        #print(ray_origins)
-
         # changing the coordinates with maximum distance to equal nan
         if np.any(distance_mask):
             ray_origins[distance_mask] = np.full((distance_mask.sum(), 3), np.nan)
-
-
-
-
-
-        #ray_origins[distance_mask] = np.full((len(distance_mask), 3), np.nan)
 
         title_a = 'interaction_type_'+str(reflections)
         data[title_a] = ['2' for i in range(no_of_rays)]
@@ -177,14 +138,12 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
     data['traversal_time_ns'] = (distance_arr*(10**9)/c).tolist()
     data = pd.DataFrame(data)
 
-    data['end_point'] = data.apply(
-        lambda row: next((val for val in reversed(row) if pd.notna(val)), np.nan),
-        axis=1
-    )
+    data['end_point'] = data.bfill(axis=1).iloc[:, -1]
 
     return data
 
-
+#actual process
+start_point = np.array([0, 0, 0])
 start_strength = input("What is the start strength of the rays you want to generate? Leave blank for 10,000: ")
 if start_strength == '':
     start_strength = 10000

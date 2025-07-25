@@ -115,8 +115,8 @@ pl.view_xy()
 ##############
 
 pl.subplot(1, 0)
-cuboid = pv.read('cube.obj')
-pl.add_mesh(cuboid)
+custom_model = pv.read('modelname.obj')
+pl.add_mesh(custom_model)
 
 pl.subplot(1, 1)
 sabrina = pv.read('sabrina.obj')

@@ -8,8 +8,6 @@ c = 299792458
 ray_advance = 20
 model_used = input("Input the filename of the mesh you want to carry out simulations on: ")
 
-# disabling pyembree
-
 mesh = trimesh.load_mesh(model_used, process=True)
 if isinstance(mesh, trimesh.Scene):
     mesh = trimesh.util.concatenate(mesh.dump())
@@ -36,12 +34,12 @@ def package_coord(coord):
     return return_str
 
 
-def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, normals):
+def create_dataframe(id, start_point, start_strength, no_of_rays, max_reflections, normals):
     ray_origins, ray_directions = generate_ray_lists(start_point, no_of_rays)
     ray_origins = np.array(ray_origins)
     ray_directions = np.array(ray_directions)
 
-    id = [91500 for i in range(no_of_rays)]
+    id = [id for i in range(no_of_rays)]
     start_strength = [start_strength for i in range(no_of_rays)]
     distance_arr = np.array([np.float64(0) for i in range(no_of_rays)])
     reflections = 0
@@ -142,22 +140,44 @@ def create_dataframe(start_point, start_strength, no_of_rays, max_reflections, n
 
     return data
 
-#actual process
-start_point = np.array([0, 0, 0])
-start_strength = input("What is the start strength of the rays you want to generate? Leave blank for 10,000: ")
-if start_strength == '':
-    start_strength = 10000
-no_of_rays = input("What is the number of rays you want to generate? Leave blank for 10: ")
-if no_of_rays == '':
-    no_of_rays = 10
-max_reflections = input("What is the maximum number of reflections you want your rays to simulate? Leave blank for 10: ")
-if max_reflections == '':
-    max_reflections = 10
-start_strength = int(start_strength)
-no_of_rays = int(no_of_rays)
-max_reflections = int(max_reflections)
+def create_csv(no_of_sources):
+    for i in range(no_of_sources):
+        #actual process
 
-df = create_dataframe(start_point, start_strength, no_of_rays, max_reflections, normals=normals)
+
+        start_point = input("What is the start point of the rays from source "+str(i+1)+" you want to generate? Type your values separated by spaces and lave blank for origin: ")
+        if start_point == '':
+            start_point = test_start_point
+        else:
+            start_point = np.array(start_point.split()).astype(float)
+        start_strength = input("What is the start strength of the rays from source "+str(i+1)+" you want to generate? Leave blank for 10,000: ")
+        if start_strength == '':
+            start_strength = 10000
+        no_of_rays = input("What is the number of rays for source "+str(i+1)+" you want to generate? Leave blank for 10: ")
+        if no_of_rays == '':
+            no_of_rays = 10
+        max_reflections = input("What is the maximum number of reflections for source "+str(i+1)+" you want your rays to simulate? Leave blank for 10: ")
+        if max_reflections == '':
+            max_reflections = 10
+
+        start_strength = int(start_strength)
+        no_of_rays = int(no_of_rays)
+        max_reflections = int(max_reflections)
+        df = create_dataframe(i+1, start_point, start_strength, no_of_rays, max_reflections, normals=normals)
+        if i==0:
+            combined_df = df
+        else:
+            combined_df = pd.concat([combined_df, df], ignore_index=True, sort=False)
+
+    combined_df.to_csv('generated_ray_data.csv', index=False)
+
+
+
+
+#df = create_dataframe(id=i+1, start_point, start_strength, no_of_rays, max_reflections, normals=normals)
 #print(df.to_string())
+#df.to_csv('generated_ray_data.csv', index=False)
+test_start_point = np.array([0, 0, 0])
+test_start_point2 = np.array([1, 0, 0])
 
-df.to_csv('generated_ray_data.csv', index=False)
+create_csv(2)

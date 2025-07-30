@@ -1,8 +1,10 @@
 import pyvista as pv
 import numpy as np
 import pandas as pd
-raytrace_data = pd.read_csv('generated_ray_data.csv')
 
+
+
+raytrace_data = pd.read_csv('generated_ray_data.csv')
 #setting up axes
 pl = pv.Plotter(shape=(2, 2))
 
@@ -27,52 +29,61 @@ no_of_unique_ids = len(unique_ids)
 def plot_dataframe(dataframe, id):
     start_point = np.array(parse_coord_data(dataframe['start_point'].iloc[0]))
     pl.add_points(start_point, point_size=20.0, color='red')
+
+    points = []
+    lines = []
+
     for index, row in dataframe.iterrows():
         try:
             coord_index = dataframe.columns.get_loc('interaction_type_1')
             previous_point = start_point
             point_colour = 'black'
             while coord_index <col_num and pd.isna(row.iloc[coord_index])==False:
-                match row.iloc[coord_index]:
-                    case 1:
-                        point_colour = 'blue'
-                    case 2:
-                        point_colour = 'lightgreen'
-                    case 3:
-                        point_colour = 'yellow'
-                    case other:
-                        current_point = np.array(parse_coord_data(row.iloc[coord_index]))
+                if type(row.iloc[coord_index]) != int:
+                    current_point = np.array(parse_coord_data(row.iloc[coord_index]))
 
 
-                        ## TEMPORARY DATA!! ##
-                        # essentially the reason why this is here is because of ui conflicts.
-                        # i don't know whether to have the points represent the interaction type or the ray id yet.
-                        # the code before (which gets overwritten) represents the former
-                        # the code here (which overwrites the former) represents the latter.
-                        # i'll have to decide later.
-                        match id:
-                            case 1:
-                                point_colour = 'blue'
-                            case 2:
-                                point_colour = 'lightgreen'
-                            case 3:
-                                point_colour = 'yellow'
-                            case other:
-                                point_colour = 'purple'
-                        ## END OF TEMPORARY CODE ##
 
 
-                        pl.add_points(current_point, render_points_as_spheres=True, point_size=10.0, color=point_colour)
-                        my_line = pv.Line(previous_point, current_point)
-                        pl.add_mesh(my_line, color='black')
-                        previous_point = current_point
+
+                    #pl.add_points(current_point, render_points_as_spheres=True, point_size=10.0, color=point_colour)
+                    points.append(current_point)
+                    my_line = pv.Line(previous_point, current_point)
+                    lines.append(my_line)
+                    # pl.add_mesh(my_line, color='black')
+                    previous_point = current_point
                 coord_index +=1
             end_point = np.array(parse_coord_data(row['end_point']))
             pl.add_points(end_point, point_size=15.0, color='black')
             end_line = pv.Line(previous_point, end_point)
-            pl.add_mesh(end_line)
+            lines.append(end_line)
+            #pl.add_mesh(end_line)
         except:
             print("a row was omitted for this")
+    ## TEMPORARY DATA!! ##
+    # essentially the reason why this is here is because of ui conflicts.
+    # i don't know whether to have the points represent the interaction type or the ray id yet.
+    # the code before (which gets overwritten) represents the former
+    # the code here (which overwrites the former) represents the latter.
+    # i'll have to decide later.
+    match id:
+        case 1:
+            point_colour = 'blue'
+        case 2:
+            point_colour = 'lightgreen'
+        case 3:
+            point_colour = 'yellow'
+        case other:
+            point_colour = 'purple'
+    ## END OF TEMPORARY CODE ##
+
+
+    pl.add_points(np.array(points), render_points_as_spheres=True, point_size=10.0, color=point_colour)
+    # merging the lines into one mesh. this is for performance uplift
+    combined = lines[0]
+    for line in lines[1:]:
+        combined = combined.merge(line)
+    pl.add_mesh(combined, color='black', line_width=2)
 
 ## start of actual code ##
 
@@ -90,9 +101,7 @@ if no_of_unique_ids !=1:
         subdataframe = raytrace_data[raytrace_data["id"] == id]
         plot_dataframe(subdataframe, id)
 else:
-    id = int(input("Which ray source ID do you want to render? "))
-    subdataframe = raytrace_data[raytrace_data["id"] == id]
-    plot_dataframe(subdataframe, id)
+    plot_dataframe(raytrace_data, raytrace_data["id"].iloc[0])
 
 
 model_name = input("Enter the model you want to overlay over the simulation. Leave blank if you don't want to: ")
@@ -106,7 +115,6 @@ if model_name != '':
         smooth_shading=True
     )
 
-pl.remove_scalar_bar()
 
 ##############################
 #POWER DELAY PROFILE PLOTTING#
@@ -148,7 +156,7 @@ for row in pdp_df.itertuples(index=False):
     pl.add_mesh(my_stem, color='black', line_width=2)
 
 pl.view_xy()
-
+pl.disable()
 ##############
 #PLOTTING OBJ#
 ##############

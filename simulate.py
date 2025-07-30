@@ -180,4 +180,14 @@ def create_csv(no_of_sources):
 test_start_point = np.array([0, 0, 0])
 test_start_point2 = np.array([1, 0, 0])
 
-create_csv(2)
+
+no_of_sources = input("Enter the number of ray sources you want to use. Leave blank for 1: ")
+if no_of_sources == '':
+    no_of_sources = 1
+else:
+    try:
+        no_of_sources = int(no_of_sources)
+    except:
+        print("You didn't input an integer 🤡")
+if type(no_of_sources) == int:
+    create_csv(no_of_sources)

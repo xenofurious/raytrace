@@ -4,6 +4,8 @@ from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
+from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox
+from qtpy.QtCore import Qt
 import pandas as pd
 import os
 os.environ["QT_API"] = "pyqt5"
@@ -12,6 +14,8 @@ pl = pv.Plotter()
 
 
 raytrace_data = pd.read_csv('generated_ray_data.csv')
+unique_ids = raytrace_data["id"].unique()
+no_of_unique_ids = len(unique_ids)
 #setting up axes
 
 #table = ax3.table((2, 4), 2, 2)
@@ -35,31 +39,50 @@ class MyMainWindow(MainWindow):
         self.setCentralWidget(self.frame)
 
 
+        # set up sidebar
+        self.sidebar = QDockWidget("simulation controls", self)
+        self.sidebar.setMinimumWidth(150)
+        self.sidebar.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
 
-        # simple menu to demo functions
+        # sidebar content
+        sidebar_widget = QWidget()
+        sidebar_layout = QVBoxLayout()
+
+        checkboxes_parent_widget = QWidget()
+        checkboxes_layout = QVBoxLayout(checkboxes_parent_widget)
+        checkboxes_parent_widget.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+
+        for ray_id in unique_ids:
+            ray_id_str = "ray source " + str(ray_id)
+            ray_id_checkbox = QCheckBox(ray_id_str)
+            checkboxes_layout.addWidget(ray_id_checkbox)
+
+
+        button_sphere = QPushButton("Add Sphere")
+        button_sphere.clicked.connect(self.add_sphere)
+        button_cube = QPushButton("Add Cube")
+        button_cube.clicked.connect(self.add_cube)
+        sidebar_layout.addWidget(checkboxes_parent_widget)
+        sidebar_layout.addWidget(button_sphere)
+        sidebar_layout.addWidget(button_cube)
+        sidebar_widget.setLayout(sidebar_layout)
+
+        sidebar_layout.addStretch()
+        self.sidebar.setWidget(sidebar_widget)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.sidebar)
+
+        # menu options
         mainMenu = self.menuBar()
-        fileMenu = mainMenu.addMenu('File')
-        exitButton = QtWidgets.QAction('Exit', self)
-        exitButton.setShortcut('Ctrl+Q')
-        exitButton.triggered.connect(self.close)
-        fileMenu.addAction(exitButton)
-
-        # allow adding a sphere
-        meshMenu = mainMenu.addMenu('Mesh')
+        meshMenu = mainMenu.addMenu('Options')
         self.add_sphere_action = QtWidgets.QAction('Add Sphere', self)
         self.add_sphere_action.triggered.connect(self.add_sphere)
         meshMenu.addAction(self.add_sphere_action)
 
-        # allow adding a cube
-        self.add_cube_action = QtWidgets.QAction('Add Cube', self)
-        self.add_cube_action.triggered.connect(self.add_cube)
-        meshMenu.addAction(self.add_cube_action)
 
         # add sabrina
         self.add_sabrina()
 
         # add pyvista plot
-
         self.plot_dataframe(raytrace_data, 1)
         self.add_overlay()
         if show:
@@ -88,7 +111,8 @@ class MyMainWindow(MainWindow):
         self.plotter.reset_camera()
 
     def plot_dataframe(self, dataframe, id):
-        self.plotter.subplot(1, 0)
+        """ adds the plot"""
+        self.plotter.subplot(0, 0)
         start_point = np.array(parse_coord_data(dataframe['start_point'].iloc[0]))
         pl.add_points(start_point, point_size=20.0, color='red')
 

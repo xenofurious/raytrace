@@ -4,7 +4,7 @@ from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
-from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox
+from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog
 from qtpy.QtCore import Qt
 import pandas as pd
 import os
@@ -12,19 +12,21 @@ os.environ["QT_API"] = "pyqt5"
 pl = pv.Plotter()
 
 
-
 raytrace_data = pd.read_csv('generated_ray_data.csv')
 unique_ids = raytrace_data["id"].unique()
 no_of_unique_ids = len(unique_ids)
 #setting up axes
 
-#table = ax3.table((2, 4), 2, 2)
 row_num = raytrace_data.shape[0]
 col_num = raytrace_data.shape[1]
 class MyMainWindow(MainWindow):
 
     def __init__(self, parent=None, show=True):
         QtWidgets.QMainWindow.__init__(self, parent)
+        self.setWindowTitle("simulation window")
+        self.resize(1000, 700)
+
+        added_actors = []
 
         # create the frame
         self.frame = QtWidgets.QFrame()
@@ -52,21 +54,36 @@ class MyMainWindow(MainWindow):
         checkboxes_layout = QVBoxLayout(checkboxes_parent_widget)
         checkboxes_parent_widget.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
 
-        for ray_id in unique_ids:
+
+        ray_id_checkboxes = []
+        for i in range(len(unique_ids)):
+            ray_id = unique_ids[i]
             ray_id_str = "ray source " + str(ray_id)
-            ray_id_checkbox = QCheckBox(ray_id_str)
-            checkboxes_layout.addWidget(ray_id_checkbox)
+            ray_id_checkboxes.append(QCheckBox(ray_id_str))
+            ray_id_checkboxes[i].setChecked(True)
+            ray_id_checkboxes[i].stateChanged.connect(lambda state, idx = i: self.toggle_plot(idx, plots))
+            # the idx=i is a workaround. this is because it caputures i by reference
+            # so when i changes, the button reference changes too.
+            # by setting idx=i, we create a link that never changes. and now it should work perfectly.
+
+            checkboxes_layout.addWidget(ray_id_checkboxes[i])
 
 
+        # sidebar objs
         button_sphere = QPushButton("Add Sphere")
         button_sphere.clicked.connect(self.add_sphere)
         button_cube = QPushButton("Add Cube")
         button_cube.clicked.connect(self.add_cube)
+        button_add_model = QPushButton("Add 3D model overlay")
+        button_add_model.clicked.connect(lambda: self.add_obj(added_actors))
+        button_clear_models = QPushButton("Clear all 3D overlays")
+        button_clear_models.clicked.connect(lambda: self.remove_objs(added_actors))
         sidebar_layout.addWidget(checkboxes_parent_widget)
         sidebar_layout.addWidget(button_sphere)
         sidebar_layout.addWidget(button_cube)
+        sidebar_layout.addWidget(button_add_model)
+        sidebar_layout.addWidget(button_clear_models)
         sidebar_widget.setLayout(sidebar_layout)
-
         sidebar_layout.addStretch()
         self.sidebar.setWidget(sidebar_widget)
         self.addDockWidget(Qt.RightDockWidgetArea, self.sidebar)
@@ -78,16 +95,17 @@ class MyMainWindow(MainWindow):
         self.add_sphere_action.triggered.connect(self.add_sphere)
         meshMenu.addAction(self.add_sphere_action)
 
-
         # add sabrina
         self.add_sabrina()
 
+        plots = []
         # add pyvista plot
-        self.plot_dataframe(raytrace_data, 1)
-        self.add_overlay()
+        for i in unique_ids:
+            subdataframe = raytrace_data[raytrace_data["id"] == i]
+            plots.append(self.plot_dataframe(subdataframe, i))
+
         if show:
             self.show()
-
 
     def add_sphere(self):
         """ add a sphere to the pyqt frame """
@@ -110,11 +128,45 @@ class MyMainWindow(MainWindow):
         self.plotter.add_mesh(sabrina)
         self.plotter.reset_camera()
 
-    def plot_dataframe(self, dataframe, id):
+    def toggle_plot(self, plot_index, plots):
+        for i in range(len(plots[plot_index])):
+            if plots[plot_index][i] is not None:
+                visibility = not plots[plot_index][i].GetVisibility()
+                plots[plot_index][i].SetVisibility(visibility)
+
+    def add_obj(self, added_actors):
+        """ add a file of your choice to visualise"""
+        self.plotter.subplot(0, 0)
+        file_dialog, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open OBJ File",
+            "",
+            "OBJ Files (*.obj);;All Files (*)"
+        )
+
+        imported_mesh = pv.read(file_dialog)
+        actor = self.plotter.add_mesh(
+            imported_mesh,
+            color='lightblue',
+            opacity=0.4,
+            specular=1.0,
+            smooth_shading=True
+        )
+        added_actors.append(actor)
+        self.plotter.reset_camera()
+
+    def remove_objs(self, added_actors):
+        for actor in added_actors:
+            self.plotter.remove_actor(actor)
+
+    def plot_dataframe(self, dataframe, colour):
         """ adds the plot"""
+
+        actors = []
+
         self.plotter.subplot(0, 0)
         start_point = np.array(parse_coord_data(dataframe['start_point'].iloc[0]))
-        pl.add_points(start_point, point_size=20.0, color='red')
+        actors.append(self.plotter.add_points(start_point, point_size=20.0, color='red'))
 
         points = []
         lines = []
@@ -127,18 +179,15 @@ class MyMainWindow(MainWindow):
                 while coord_index < col_num and pd.isna(row.iloc[coord_index]) == False:
                     if type(row.iloc[coord_index]) != int:
                         current_point = np.array(parse_coord_data(row.iloc[coord_index]))
-
-                        # pl.add_points(current_point, render_points_as_spheres=True, point_size=10.0, color=point_colour)
                         points.append(current_point)
                         my_line = pv.Line(previous_point, current_point)
                         lines.append(my_line)
-                        # pl.add_mesh(my_line, color='black')
                         previous_point = current_point
                     coord_index += 1
                 end_point = np.array(parse_coord_data(row['end_point']))
-                self.plotter.add_points(end_point, point_size=15.0, color='black')
+                actors.append(self.plotter.add_points(end_point, point_size=15.0, color='black'))
                 end_line = pv.Line(previous_point, end_point)
-                lines.append(end_line)
+                actors.append(lines.append(end_line))
                 # pl.add_mesh(end_line)
             except:
                 print("a row was omitted for this")
@@ -148,7 +197,7 @@ class MyMainWindow(MainWindow):
         # the code before (which gets overwritten) represents the former
         # the code here (which overwrites the former) represents the latter.
         # i'll have to decide later.
-        match id:
+        match colour:
             case 1:
                 point_colour = 'blue'
             case 2:
@@ -159,27 +208,14 @@ class MyMainWindow(MainWindow):
                 point_colour = 'purple'
         ## END OF TEMPORARY CODE ##
 
-        self.plotter.add_points(np.array(points), render_points_as_spheres=True, point_size=10.0, color=point_colour)
+        actors.append(self.plotter.add_points(np.array(points), render_points_as_spheres=True, point_size=10.0, color=point_colour))
         # merging the lines into one mesh. this is for performance uplift
         combined = lines[0]
         for line in lines[1:]:
             combined = combined.merge(line)
-        self.plotter.add_mesh(combined, color='black', line_width=2)
-        self.plotter.reset_camera()
-
-    def add_overlay(self):
-        model_name = input(
-            "Enter the model you want to overlay over the simulation. Leave blank if you don't want to: ")
-        if model_name != '':
-            model = pv.read(model_name)
-            actor = self.plotter.add_mesh(
-                model,
-                color='lightblue',
-                opacity=0.4,
-                specular=1.0,
-                smooth_shading=True
-            )
-
+        actors.append(self.plotter.add_mesh(combined, color='black', line_width=2))
+        actors.append(self.plotter.reset_camera())
+        return actors
 
 def parse_coord_data(coords):
     coords = coords.strip(')(').split(')(')

@@ -115,7 +115,7 @@ class MyMainWindow(MainWindow):
         self.plotter.reset_camera()
 
     def add_cube(self):
-        """ add a cube to the pyqt frame """
+        """ add a cube t`o the pyqt frame """
         self.plotter.subplot(0, 1)
         cube = pv.Cube()
         self.plotter.add_mesh(cube, show_edges=True)

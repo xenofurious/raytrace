@@ -48,6 +48,10 @@ def calculate_norm_from_face(face_of_vertices):
 
 def write_wall_face_to_obj(filename, vertices, faces):
     with open(filename, 'w') as f:
+        #writing metadata
+        f.write("#Kasper Epic Technologies Ltd.\n")
+        f.write("#I love writing placeholder metadata!\n")
+
         for vertex in vertices:
             f.write('v '+str(vertex[0]) + ' ' + str(vertex[1]) + ' ' + str(vertex[2]) + '\n')
 

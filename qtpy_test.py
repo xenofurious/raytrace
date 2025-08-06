@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QChec
 from qtpy.QtCore import Qt
 import pandas as pd
 import os
-os.environ["QT_API"] = "pyqt5"
+os.environ["QT_API"] = "pyqt6"
 pl = pv.Plotter()
 
 
@@ -124,7 +124,7 @@ class MyMainWindow(MainWindow):
     def add_sabrina(self):
         """ add sabrina carpenter to the pyqt frame"""
         self.plotter.subplot(1, 0)
-        sabrina = pv.read("sabrina.obj")
+        sabrina = pv.read("models/sabrina.obj")
         self.plotter.add_mesh(sabrina)
         self.plotter.reset_camera()
 

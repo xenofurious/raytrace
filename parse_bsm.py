@@ -1,5 +1,8 @@
 import xml.etree.ElementTree as ET
 import numpy as np
+import os
+import shutil
+from pathlib import Path
 
 filepath = "Demo/Demo/Building/B1.bsm"
 tree = ET.parse(filepath)
@@ -69,8 +72,42 @@ def write_wall_face_to_obj(filename, vertices, faces):
                 f.write(' ' + str(vertex_id))
             f.write('\n')
 
+def write_floor_to_obj(folder_name, file_name, floor):
+    cwd = Path.cwd()
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+    os.mkdir(folder_name)
+    os.chdir(folder_name)
+    entities = floor[10]
+    for index in range(len(entities)):
+       entity = entities[index]
+       file_str = file_name+str(index)+".obj"
+       vertex_list, face_list, material = return_face_obj(entity)
+       write_wall_face_to_obj(file_str, vertex_list, face_list)
+    os.chdir(cwd)
 
 
+def write_floor_collection_to_obj(folder_name_outer, folder_name_inner, file_name, floor_collection):
+    cwd = Path.cwd()
+    if os.path.exists(folder_name_outer):
+        shutil.rmtree(folder_name_outer)
+    os.mkdir(folder_name_outer)
+    os.chdir(folder_name_outer)
+    for index in range(len(floor_collection)):
+        floor = floor_collection[index]
+        folder_str = folder_name_inner+str(index)+".obj"
+        file_str = file_name+str(index)+"_"
+        write_floor_to_obj(folder_str, file_str, floor)
+    os.chdir(cwd)
+
+
+
+sample_floor = root[9][0]
+sample_floor_collection = root[9]
+print(sample_floor)
 sample_vertex_list, sample_face_list, sample_material = return_face_obj(sample_entity)
-print(sample_face_list)
-write_wall_face_to_obj("sybau.obj", sample_vertex_list, sample_face_list)
+#print(sample_face_list)
+#write_wall_face_to_obj("sybau.obj", sample_vertex_list, sample_face_list)
+
+#write_floor_to_obj("sybau", "sybau", sample_floor)
+write_floor_collection_to_obj("sybau_outer", "sybau_inner", "sybau", sample_floor_collection)

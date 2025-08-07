@@ -26,12 +26,17 @@ def return_face_obj(sample_entity):
 
     #get faces working
     #face 1:
-    face_1 = list(range(n))
-    face_2 = list(range(n, 2*n))
+    face_1 = list(range(1, n+1))
+    face_2 = list(range(n+1, 2*n+1))
     face_list.append(face_1)
     face_list.append(face_2)
-    for i in range(n):
-        new_face = [i, i+n, i+n+1, i+1]
+    for i in range(1, n+1):
+        third_corner = i+n+1
+        fourth_corner = i+1
+        if third_corner> 2*n:
+            third_corner = i+1
+            fourth_corner = 1
+        new_face = [i, i+n, third_corner, fourth_corner]
         face_list.append(new_face)
 
     material = sample_entity[5]
@@ -48,6 +53,9 @@ def calculate_norm_from_face(face_of_vertices):
 
 def write_wall_face_to_obj(filename, vertices, faces):
     with open(filename, 'w') as f:
+        #const
+        number_of_faces = len(vertices)
+
         #writing metadata
         f.write("#Kasper Epic Technologies Ltd.\n")
         f.write("#I love writing placeholder metadata!\n")
@@ -61,5 +69,8 @@ def write_wall_face_to_obj(filename, vertices, faces):
                 f.write(' ' + str(vertex_id))
             f.write('\n')
 
+
+
 sample_vertex_list, sample_face_list, sample_material = return_face_obj(sample_entity)
-write_wall_face_to_obj("sybau.txt", sample_vertex_list, sample_face_list)
+print(sample_face_list)
+write_wall_face_to_obj("sybau.obj", sample_vertex_list, sample_face_list)

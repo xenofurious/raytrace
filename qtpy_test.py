@@ -137,22 +137,23 @@ class MyMainWindow(MainWindow):
     def add_obj(self, added_actors):
         """ add a file of your choice to visualise"""
         self.plotter.subplot(0, 0)
-        file_dialog, _ = QFileDialog.getOpenFileName(
+        file_dialogs, _ = QFileDialog.getOpenFileNames(
             self,
-            "Open OBJ File",
+            "Open OBJ File(s)",
             "",
             "OBJ Files (*.obj);;All Files (*)"
         )
 
-        imported_mesh = pv.read(file_dialog)
-        actor = self.plotter.add_mesh(
-            imported_mesh,
-            color='lightblue',
-            opacity=0.4,
-            specular=1.0,
-            smooth_shading=True
-        )
-        added_actors.append(actor)
+        for file_dialog in file_dialogs:
+            imported_mesh = pv.read(file_dialog)
+            actor = self.plotter.add_mesh(
+                imported_mesh,
+                color='lightblue',
+                opacity=0.4,
+                specular=1.0,
+                smooth_shading=True
+            )
+            added_actors.append(actor)
         self.plotter.reset_camera()
 
     def remove_objs(self, added_actors):

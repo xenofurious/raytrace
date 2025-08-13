@@ -54,7 +54,7 @@ def calculate_norm_from_face(face_of_vertices):
     norm = norm/np.linalg.norm(norm)
     return  norm
 
-def write_wall_face_to_obj(filename, vertices, faces):
+def write_to_obj(filename, vertices, faces):
     with open(filename, 'w') as f:
         #const
         number_of_faces = len(vertices)
@@ -83,7 +83,7 @@ def write_floor_to_obj(folder_name, file_name, floor):
        entity = entities[index]
        file_str = file_name+str(index)+".obj"
        vertex_list, face_list, material = return_face_obj(entity)
-       write_wall_face_to_obj(file_str, vertex_list, face_list)
+       write_to_obj(file_str, vertex_list, face_list)
     os.chdir(cwd)
 
 
@@ -101,6 +101,28 @@ def write_floor_collection_to_obj(folder_name_outer, folder_name_inner, file_nam
     os.chdir(cwd)
 
 
+def write_floor_collection_to_simple_obj(file_name, floor_collection):
+    vertex_list = []
+    face_list = []
+    no_of_vertices_added = 0
+    floor_height_change = 0
+    for index in range(len(floor_collection)):
+        floor = floor_collection[index]
+        for entity in floor[10]:
+            new_vertices, new_faces, material = return_face_obj(entity)
+            #add however much to each vertices / face thing.
+
+            new_vertices = [coordinate + np.array([0, 0, floor_height_change])for coordinate in new_vertices]
+            new_faces = [[x + no_of_vertices_added for x in sublist] for sublist in new_faces]
+            vertex_list.extend(new_vertices)
+            face_list.extend(new_faces)
+            no_of_vertices_added += len(new_vertices)
+
+        floor_height = float(floor[5].text)
+        floor_height_change+=floor_height
+    write_to_obj(file_name, vertex_list, face_list)
+
+
 
 sample_floor = root[9][0]
 sample_floor_collection = root[9]
@@ -110,4 +132,5 @@ sample_vertex_list, sample_face_list, sample_material = return_face_obj(sample_e
 #write_wall_face_to_obj("sybau.obj", sample_vertex_list, sample_face_list)
 
 #write_floor_to_obj("sybau", "sybau", sample_floor)
-write_floor_collection_to_obj("sybau_outer", "sybau_inner", "sybau", sample_floor_collection)
+#write_floor_collection_to_obj("sybau_outer", "sybau_inner", "sybau", sample_floor_collection)
+write_floor_collection_to_simple_obj("sybau_final.obj", sample_floor_collection)

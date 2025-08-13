@@ -1,13 +1,18 @@
 import sys
+
 # Setting the Qt bindings for QtPy
 from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
 from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Signal
 import pandas as pd
 import os
+import xml.etree.ElementTree as ET
+
+import parse_bsm
+
 os.environ["QT_API"] = "pyqt6"
 pl = pv.Plotter()
 
@@ -15,10 +20,16 @@ pl = pv.Plotter()
 raytrace_data = pd.read_csv('generated_ray_data.csv')
 unique_ids = raytrace_data["id"].unique()
 no_of_unique_ids = len(unique_ids)
-#setting up axes
+# setting up axes
 
 row_num = raytrace_data.shape[0]
 col_num = raytrace_data.shape[1]
+
+added_actors = []
+
+plots = []
+
+
 class MyMainWindow(MainWindow):
 
     def __init__(self, parent=None, show=True):
@@ -26,7 +37,6 @@ class MyMainWindow(MainWindow):
         self.setWindowTitle("simulation window")
         self.resize(1000, 700)
 
-        added_actors = []
 
         # create the frame
         self.frame = QtWidgets.QFrame()
@@ -42,51 +52,14 @@ class MyMainWindow(MainWindow):
 
 
         # set up sidebar
-        self.sidebar = QDockWidget("simulation controls", self)
-        self.sidebar.setMinimumWidth(150)
-        self.sidebar.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-
-        # sidebar content
-        sidebar_widget = QWidget()
-        sidebar_layout = QVBoxLayout()
-
-        checkboxes_parent_widget = QWidget()
-        checkboxes_layout = QVBoxLayout(checkboxes_parent_widget)
-        checkboxes_parent_widget.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
-
-
-        ray_id_checkboxes = []
-        for i in range(len(unique_ids)):
-            ray_id = unique_ids[i]
-            ray_id_str = "ray source " + str(ray_id)
-            ray_id_checkboxes.append(QCheckBox(ray_id_str))
-            ray_id_checkboxes[i].setChecked(True)
-            ray_id_checkboxes[i].stateChanged.connect(lambda state, idx = i: self.toggle_plot(idx, plots))
-            # the idx=i is a workaround. this is because it caputures i by reference
-            # so when i changes, the button reference changes too.
-            # by setting idx=i, we create a link that never changes. and now it should work perfectly.
-
-            checkboxes_layout.addWidget(ray_id_checkboxes[i])
-
-
-        # sidebar objs
-        button_sphere = QPushButton("Add Sphere")
-        button_sphere.clicked.connect(self.add_sphere)
-        button_cube = QPushButton("Add Cube")
-        button_cube.clicked.connect(self.add_cube)
-        button_add_model = QPushButton("Add 3D model overlay")
-        button_add_model.clicked.connect(lambda: self.add_obj(added_actors))
-        button_clear_models = QPushButton("Clear all 3D overlays")
-        button_clear_models.clicked.connect(lambda: self.remove_objs(added_actors))
-        sidebar_layout.addWidget(checkboxes_parent_widget)
-        sidebar_layout.addWidget(button_sphere)
-        sidebar_layout.addWidget(button_cube)
-        sidebar_layout.addWidget(button_add_model)
-        sidebar_layout.addWidget(button_clear_models)
-        sidebar_widget.setLayout(sidebar_layout)
-        sidebar_layout.addStretch()
-        self.sidebar.setWidget(sidebar_widget)
+        self.sidebar = MySidebar()
         self.addDockWidget(Qt.RightDockWidgetArea, self.sidebar)
+        self.sidebar.add_obj.connect(self.add_obj)
+        self.sidebar.remove_objs.connect(self.remove_objs)
+        self.sidebar.add_cube.connect(self.add_cube)
+        self.sidebar.add_sphere.connect(self.add_sphere)
+        self.sidebar.toggle_plot.connect(self.toggle_plot)
+        self.sidebar.parse_bsm.connect(self.parse_bsm)
 
         # menu options
         mainMenu = self.menuBar()
@@ -98,7 +71,6 @@ class MyMainWindow(MainWindow):
         # add sabrina
         self.add_sabrina()
 
-        plots = []
         # add pyvista plot
         for i in unique_ids:
             subdataframe = raytrace_data[raytrace_data["id"] == i]
@@ -115,7 +87,7 @@ class MyMainWindow(MainWindow):
         self.plotter.reset_camera()
 
     def add_cube(self):
-        """ add a cube t`o the pyqt frame """
+        """ add a cube to the pyqt frame """
         self.plotter.subplot(0, 1)
         cube = pv.Cube()
         self.plotter.add_mesh(cube, show_edges=True)
@@ -134,28 +106,32 @@ class MyMainWindow(MainWindow):
                 visibility = not plots[plot_index][i].GetVisibility()
                 plots[plot_index][i].SetVisibility(visibility)
 
-    def add_obj(self, added_actors):
+    def add_obj(self):
         """ add a file of your choice to visualise"""
         self.plotter.subplot(0, 0)
-        file_dialog, _ = QFileDialog.getOpenFileName(
+        start_dir = os.getcwd()
+
+        file_dialogs, _ = QFileDialog.getOpenFileNames(
             self,
-            "Open OBJ File",
-            "",
+            "Open OBJ File(s)",
+            start_dir,
             "OBJ Files (*.obj);;All Files (*)"
         )
-
-        imported_mesh = pv.read(file_dialog)
-        actor = self.plotter.add_mesh(
-            imported_mesh,
-            color='lightblue',
-            opacity=0.4,
-            specular=1.0,
-            smooth_shading=True
-        )
-        added_actors.append(actor)
+        print(file_dialogs)
+        for file_dialog in file_dialogs:
+            imported_mesh = pv.read(file_dialog)
+            actor = self.plotter.add_mesh(
+                imported_mesh,
+                color='lightblue',
+                opacity=0.4,
+                specular=1.0,
+                smooth_shading=True
+            )
+            added_actors.append(actor)
         self.plotter.reset_camera()
 
-    def remove_objs(self, added_actors):
+    def remove_objs(self):
+        """removes all added obj overlays"""
         for actor in added_actors:
             self.plotter.remove_actor(actor)
 
@@ -216,6 +192,81 @@ class MyMainWindow(MainWindow):
         actors.append(self.plotter.add_mesh(combined, color='black', line_width=2))
         actors.append(self.plotter.reset_camera())
         return actors
+
+    def parse_bsm(self):
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open BSM File(s)",
+            "",
+            "BSM file (*.bsm);;All Files (*)"
+        )
+        tree = ET.parse(filepath)
+        root = tree.getroot()
+        floor_collection = root[9]
+        parse_bsm.write_floor_collection_to_simple_obj("floor_collection.obj", floor_collection)
+        print("Written to .obj!")
+
+class MySidebar(QDockWidget):
+
+    # custom signals
+    toggle_plot = Signal(int, list)
+    add_sphere = Signal()
+    add_cube = Signal()
+    add_obj = Signal()
+    remove_objs = Signal()
+    parse_bsm = Signal()
+
+
+    def __init__(self):
+        super().__init__("Sidebar")
+
+
+        added_actors = []
+        sidebar_widget = QWidget()
+        sidebar_layout = QVBoxLayout()
+
+
+        checkboxes_parent_widget = QWidget()
+        checkboxes_layout = QVBoxLayout(checkboxes_parent_widget)
+        checkboxes_parent_widget.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+
+
+        ray_id_checkboxes = []
+        for i in range(len(unique_ids)):
+            ray_id = unique_ids[i]
+            ray_id_str = "ray source " + str(ray_id)
+            ray_id_checkboxes.append(QCheckBox(ray_id_str))
+            ray_id_checkboxes[i].setChecked(True)
+            ray_id_checkboxes[i].stateChanged.connect(lambda state, idx = i: self.toggle_plot.emit(idx, plots))
+            # the idx=i is a workaround. this is because it caputures i by reference
+            # so when i changes, the button reference changes too.
+            # by setting idx=i, we create a link that never changes. and now it should work perfectly.
+
+            checkboxes_layout.addWidget(ray_id_checkboxes[i])
+
+
+        # sidebar objs
+        button_sphere = QPushButton("Add Sphere")
+        button_sphere.clicked.connect(self.add_sphere.emit)
+        button_cube = QPushButton("Add Cube")
+        button_cube.clicked.connect(self.add_cube.emit)
+        button_add_model = QPushButton("Add 3D model overlay")
+        button_add_model.clicked.connect(lambda: self.add_obj.emit())
+        button_clear_models = QPushButton("Clear all 3D overlays")
+        button_clear_models.clicked.connect(lambda: self.remove_objs.emit())
+        button_parse_bsm = QPushButton("Select .bsm file")
+        button_parse_bsm.clicked.connect(self.parse_bsm.emit)
+
+        sidebar_layout.addWidget(checkboxes_parent_widget)
+        sidebar_layout.addWidget(button_sphere)
+        sidebar_layout.addWidget(button_cube)
+        sidebar_layout.addWidget(button_add_model)
+        sidebar_layout.addWidget(button_clear_models)
+        sidebar_layout.addWidget(button_parse_bsm)
+        sidebar_widget.setLayout(sidebar_layout)
+        sidebar_layout.addStretch()
+        self.setWidget(sidebar_widget)
+
 
 def parse_coord_data(coords):
     coords = coords.strip(')(').split(')(')

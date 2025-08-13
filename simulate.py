@@ -6,7 +6,7 @@ import trimesh
 # constants
 c = 299792458
 ray_advance = 20
-model_used = input("Input the filename of the mesh you want to carry out simulations on: ")
+model_used = "models/"+input("Input the filename of the mesh you want to carry out simulations on: ")
 
 mesh = trimesh.load_mesh(model_used, process=True)
 if isinstance(mesh, trimesh.Scene):
@@ -191,3 +191,4 @@ else:
         print("You didn't input an integer 🤡")
 if type(no_of_sources) == int:
     create_csv(no_of_sources)
+    print("Simulation successful")

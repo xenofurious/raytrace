@@ -5,8 +5,8 @@ from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
-from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog, QInputDialog, QLineEdit
+from qtpy.QtCore import Qt, Signal, QTimer
 import pandas as pd
 import os
 import xml.etree.ElementTree as ET
@@ -106,6 +106,8 @@ class MyMainWindow(MainWindow):
                 visibility = not plots[plot_index][i].GetVisibility()
                 plots[plot_index][i].SetVisibility(visibility)
 
+
+
     def add_obj(self):
         """ add a file of your choice to visualise"""
         self.plotter.subplot(0, 0)
@@ -200,11 +202,19 @@ class MyMainWindow(MainWindow):
             "",
             "BSM file (*.bsm);;All Files (*)"
         )
-        tree = ET.parse(filepath)
-        root = tree.getroot()
-        floor_collection = root[9]
-        parse_bsm.write_floor_collection_to_simple_obj("floor_collection.obj", floor_collection)
-        print("Written to .obj!")
+        if filepath != "":
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+            floor_collection = root[9]
+
+            text, ok = QInputDialog.getText(
+                self,
+                "Enter Name Of File",
+                "Please enter the name of the file / folder",
+                QLineEdit.Normal
+            )
+            parse_bsm.write_floor_collection_to_simple_obj(text+".obj", floor_collection)
+            print("Written to "+text+".obj!")
 
 class MySidebar(QDockWidget):
 
@@ -221,7 +231,6 @@ class MySidebar(QDockWidget):
         super().__init__("Sidebar")
 
 
-        added_actors = []
         sidebar_widget = QWidget()
         sidebar_layout = QVBoxLayout()
 

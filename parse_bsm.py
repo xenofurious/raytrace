@@ -124,13 +124,12 @@ def write_floor_collection_to_simple_obj(file_name, floor_collection):
 
 
 
-sample_floor = root[9][0]
-sample_floor_collection = root[9]
-print(sample_floor)
-sample_vertex_list, sample_face_list, sample_material = return_face_obj(sample_entity)
+#sample_floor = root[9][0]
+#sample_floor_collection = root[9]
+#sample_vertex_list, sample_face_list, sample_material = return_face_obj(sample_entity)
 #print(sample_face_list)
 #write_wall_face_to_obj("sybau.obj", sample_vertex_list, sample_face_list)
 
 #write_floor_to_obj("sybau", "sybau", sample_floor)
 #write_floor_collection_to_obj("sybau_outer", "sybau_inner", "sybau", sample_floor_collection)
-write_floor_collection_to_simple_obj("sybau_final.obj", sample_floor_collection)
+#write_floor_collection_to_simple_obj("sybau_final.obj", sample_floor_collection)

@@ -118,6 +118,7 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         'start_point': start_point_packaged
     }
 
+    end_points_arr = np.full((no_of_rays, 3), np.nan)
     while reflections < max_reflections and np.sum(np.isfinite(ray_directions).all(axis=1))>0:
         #need to filter out the nans from ray_origins and ray_directions before we input them - since mesh.ray.intersects doesn't accept nans
         prev_nan_mask = np.isfinite(ray_directions).all(axis=1)
@@ -190,9 +191,10 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         # set the next ray directions to np.nan where comparison (mask) = True
         # and then make sure that the collision point was set to the sphere collision
         receiver_collision_mask = mesh_distances > receiver_distances
-        valid_receiver_points = np.isfinite(receiver_collision_points).all(axis=1)
-        final_mask = receiver_collision_mask & valid_receiver_points
-        ray_origins[final_mask] = receiver_collision_points[final_mask]
+        valid_receiver_points_mask = np.isfinite(receiver_collision_points).all(axis=1)
+        final_mask = receiver_collision_mask & valid_receiver_points_mask
+        ray_origins[final_mask] = np.nan
+        end_points_arr[final_mask] = receiver_collision_points[final_mask]
 
         # NOW WE NEED TO WRITE A BLOCK OF CODE THAT SETS ray_directions TO 0
         ray_directions[final_mask] = np.nan
@@ -216,10 +218,15 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         ray_origins_packaged = list(map(package_coord, ray_origins.tolist()))
         data[title_b] = ray_origins_packaged
 
+    indices = np.where(np.isnan(end_points_arr).any(axis=1))[0]
+    end_points_list = list(map(package_coord, end_points_arr.tolist()))
+    print(end_points_list)
     data['end_strength'] = (data['start_strength']-distance_arr*signal_factor).tolist() # alter later to match a realistic simulation model
     data['traversal_time_ns'] = (distance_arr*(10**9)/c).tolist()
     data = pd.DataFrame(data)
-    data['end_point'] = data.bfill(axis=1).iloc[:, -1]
+    data['end_point'] = end_points_list
+    print(indices)
+    data = data.drop(data.index[indices])
     return data
 
 def create_csv(no_of_sources):

@@ -90,11 +90,8 @@ def ray_sphere_intersections(ray_origins, ray_directions, receiver): #returns an
 
 def calculate_sphere_collision_points_from_distance(previous_points_, new_directions_, distance_):
     previous_points, new_directions, distance = previous_points_.copy(), new_directions_.copy(), distance_.copy()
-    print("new_directions shape: ", np.shape(new_directions),  "distance shape: ", np.shape(distance))
     new_directions = new_directions / np.linalg.norm(new_directions, axis=1)[:, None]
     sphere_collision_points = previous_points + new_directions * distance[:, None]
-    print("receiver-collided directions: ", new_directions )
-    print("receiver collided distance:", distance)
     return sphere_collision_points
 
 def create_dataframe(id, transmitter, receiver, start_strength, max_reflections, normals):
@@ -122,33 +119,16 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
     }
 
     while reflections < max_reflections and np.sum(np.isfinite(ray_directions).all(axis=1))>0:
-        print("\n\n reflection", reflections)
-        ray_index_arr_total = np.array([i for i in range(no_of_rays)])
-
         #need to filter out the nans from ray_origins and ray_directions before we input them - since mesh.ray.intersects doesn't accept nans
         prev_nan_mask = np.isfinite(ray_directions).all(axis=1)
         prev_nan_mask_indices = np.where(prev_nan_mask)[0]
         filtered_ray_origins = ray_origins[prev_nan_mask]
         filtered_ray_directions = ray_directions[prev_nan_mask]
-        print("np.nan check before we input into trimesh:", prev_nan_mask)
-        print("and the indices:", prev_nan_mask_indices)
 
         # calculating the ray-mesh intersections
         coord_arr, ray_index_arr, tri_index_arr = mesh.ray.intersects_location(
             filtered_ray_origins, filtered_ray_directions, multiple_hits=False
         )
-
-        no_of_nans = no_of_rays-len(coord_arr)
-        arr_nans_vec = np.full((no_of_nans, 3), np.nan)
-        arr_nans_float = np.array([np.nan for i in range(no_of_nans)])
-        diff_rayindex = np.setdiff1d(ray_index_arr_total, ray_index_arr)
-        if coord_arr.size ==0:
-            coord_arr = arr_nans_vec
-            tri_index_arr = arr_nans_float
-        else:
-            coord_arr = np.concatenate((coord_arr, arr_nans_vec), axis=0)
-            tri_index_arr = np.concatenate((tri_index_arr, arr_nans_float), axis=0)
-        ray_index_arr = np.concatenate((ray_index_arr, diff_rayindex), axis=0)
 
 
         # sorting the rays - due to parallel processing constraints, the rays are returned in a jumbled mess
@@ -163,22 +143,30 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
                     temp = tri_index_arr[j].copy()
                     tri_index_arr[j], tri_index_arr[j + 1] = tri_index_arr[j + 1], temp
 
+        dummy_coord_arr = np.full((no_of_rays, 3), np.nan)
+        dummy_coord_arr[prev_nan_mask] = coord_arr.copy()
+        coord_arr = dummy_coord_arr.copy()
+
+        dummy_tri_index_arr = np.full(no_of_rays, np.nan)
+        dummy_tri_index_arr[prev_nan_mask] = tri_index_arr.copy()
+        tri_index_arr = dummy_tri_index_arr.copy()
+
+        ray_index_arr = np.array(range(no_of_rays))
+
+
+
         # BY THIS POINT ThE MESH INTERSECTIONS HAVE BEEN CALCULATED.
         # NOW WE CALCULATE THE SPHERE COLLISIONS!!!!
         # NEXT TASK IS TO MOVE THE STUFF HERE.
         receiver_distances = ray_sphere_intersections(ray_origins, ray_directions, receiver) #this might not be in the correct place
         receiver_collision_points = calculate_sphere_collision_points_from_distance(ray_origins, ray_directions,
                                                                                     receiver_distances)
-        print("ray index arr: ", ray_index_arr)
-        print("tri index arr: ",tri_index_arr)
-        print("coord arr:", coord_arr)
         # this is a block of code that loops through the face normals and "expands it" into a full array with nans. this is not vectorised, so it may need to be rewritten later.
         face_normals = np.full((no_of_rays, 3), np.nan)
         for x in range(no_of_rays):
             a = tri_index_arr[ray_index_arr[x]]
             if not np.isnan(a):
                 face_normals[x] = normals[int(a)]
-        print("face normals:", face_normals)
 
 
 
@@ -219,27 +207,12 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         # comparing the distances of ray-mesh and ray-sphere
         mesh_distances = np.linalg.norm(new_distance_arr, axis=1)
 
-        # OKAY SO THE BUG IM FACING IS FROM THE RAY ORIGIN VARIABLE RANDOMLY LOSING SOME VALUES.
-        # it seems to be that ray_origin freaks the fuck out and sets the last ray to nan values BEFORE this block of code in the loop.
-        # so keep searching up, the problem will be over there.
-
-
-        # CHAT GPT CODE
         # set the next ray directions to np.nan where comparison (mask) = True
         # and then make sure that the collision point was set to the sphere collision
         receiver_collision_mask = mesh_distances > receiver_distances
-        # build a row-wise validity mask (True if all coords are finite)
         valid_receiver_points = np.isfinite(receiver_collision_points).all(axis=1)
-        # combine both conditions
         final_mask = receiver_collision_mask & valid_receiver_points
-        print("receiver-collided points before: ", coords_before[final_mask])
-        print("receiver-collided points after: ", receiver_collision_points[final_mask])
-        print("ray origins pre mask:", ray_origins)
-        print("ray directions pre mask:", ray_directions)
-        print("receiver-collision mask:", final_mask)
-        # assign only where both masks agree
         ray_origins[final_mask] = receiver_collision_points[final_mask]
-        # END OF CHAT GPT CODE
 
 
 
@@ -268,9 +241,6 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
 
 
 
-        print("all points before:", coords_before)
-        print("all points after:", ray_origins)
-
 
 
     data['end_strength'] = (data['start_strength']-distance_arr*signal_factor).tolist() # alter later to match a realistic simulation model
@@ -297,7 +267,7 @@ def create_csv(no_of_sources):
 
 # DEBUG
 # some sample debug values
-sample_transmitter = Transmitter(np.array([0.9, 0, 0]), no_of_rays=5, mode="random")
+sample_transmitter = Transmitter(np.array([0.9, 0, 0]), no_of_rays=20, mode="random")
 sample_receiver = Receiver(np.array([0, 0, 0]), 0.5)
 #sample_ray_origin = np.array([10, 100, 10])
 #sample_ray_direction = np.array([-1, -1, -1])

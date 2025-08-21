@@ -168,37 +168,17 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
             if not np.isnan(a):
                 face_normals[x] = normals[int(a)]
 
-
-
-
-
-
-
-
-
         # this code is for calculating the new ray directions
         epsilon = 0.00001 #this is for avoiding floating_point errors/face collisions
         dot_products = np.einsum('ij,ij->i', ray_directions, face_normals)[:, np.newaxis]
 
-
-
-        #print("ray directions pre calc: ", ray_directions) # DEBUG
         coords_before = ray_origins.copy()
         ray_directions = ray_directions - 2 * dot_products * face_normals
 
-        #print("ray directions post calc: ", ray_directions) # DEBUG
         # this code is for calculating the new ray origins (it's already in coord_arr)
         ray_origins = np.array([i for i in coord_arr])
         ray_origins += ray_directions*epsilon
         reflections += 1
-
-
-
-
-
-
-
-
 
         # this code is for calculating the distance
         coords_after = ray_origins.copy()
@@ -214,8 +194,6 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         final_mask = receiver_collision_mask & valid_receiver_points
         ray_origins[final_mask] = receiver_collision_points[final_mask]
 
-
-
         # NOW WE NEED TO WRITE A BLOCK OF CODE THAT SETS ray_directions TO 0
         ray_directions[final_mask] = np.nan
 
@@ -226,7 +204,6 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         distance_mask = (start_strength - distance_arr) <0
         excess_distances = np.linalg.norm(new_distance_arr[distance_mask].copy(), axis=1)
         distance_arr[distance_mask] -= excess_distances
-
 
         # changing the coordinates with maximum distance to equal nan
         if np.any(distance_mask):
@@ -239,16 +216,10 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
         ray_origins_packaged = list(map(package_coord, ray_origins.tolist()))
         data[title_b] = ray_origins_packaged
 
-
-
-
-
     data['end_strength'] = (data['start_strength']-distance_arr*signal_factor).tolist() # alter later to match a realistic simulation model
     data['traversal_time_ns'] = (distance_arr*(10**9)/c).tolist()
     data = pd.DataFrame(data)
-
     data['end_point'] = data.bfill(axis=1).iloc[:, -1]
-
     return data
 
 def create_csv(no_of_sources):

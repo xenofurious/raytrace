@@ -50,7 +50,7 @@ def calculate_norm_from_face(face_of_vertices):
     face_of_vertices_arr = np.array(face_of_vertices) #for vectorised operations
     vector1 = face_of_vertices_arr[1]-face_of_vertices_arr[0]
     vector2 = face_of_vertices_arr[2]-face_of_vertices_arr[1]
-    norm = np.linalg.cross(vector1, vector2)
+    norm = np.cross(vector1, vector2)
     norm = norm/np.linalg.norm(norm)
     return  norm
 

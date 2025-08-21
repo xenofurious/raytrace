@@ -81,9 +81,14 @@ class MyMainWindow(MainWindow):
 
     def add_sphere(self):
         """ add a sphere to the pyqt frame """
-        self.plotter.subplot(1, 1)
-        sphere = pv.Sphere()
-        self.plotter.add_mesh(sphere, show_edges=True)
+        self.plotter.subplot(0, 0)
+        sphere = pv.Sphere(radius=0.5)
+        self.plotter.add_mesh(sphere,
+                color='lightblue',
+                opacity=0.4,
+                specular=1.0,
+                smooth_shading=True,
+                show_edges=True)
         self.plotter.reset_camera()
 
     def add_cube(self):
@@ -186,7 +191,7 @@ class MyMainWindow(MainWindow):
                 point_colour = 'purple'
         ## END OF TEMPORARY CODE ##
 
-        actors.append(self.plotter.add_points(np.array(points), render_points_as_spheres=True, point_size=10.0, color=point_colour))
+        actors.append(self.plotter.add_points(np.array(points), render_points_as_spheres=True, point_size=8.0, color=point_colour))
         # merging the lines into one mesh. this is for performance uplift
         combined = lines[0]
         for line in lines[1:]:

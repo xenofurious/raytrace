@@ -5,12 +5,14 @@ from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
-from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog, QInputDialog, QLineEdit
-from qtpy.QtCore import Qt, Signal, QTimer
+from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog, QInputDialog, QLineEdit, QDialog
+from qtpy.QtCore import Qt, Signal
 import pandas as pd
 import os
 import xml.etree.ElementTree as ET
 
+# importing scripts (look at me oooh i can do object oriented programming)
+import simulate
 import parse_bsm
 
 os.environ["QT_API"] = "pyqt6"
@@ -20,14 +22,24 @@ pl = pv.Plotter()
 raytrace_data = pd.read_csv('generated_ray_data.csv')
 unique_ids = raytrace_data["id"].unique()
 no_of_unique_ids = len(unique_ids)
-# setting up axes
 
+# setting up axes
 row_num = raytrace_data.shape[0]
 col_num = raytrace_data.shape[1]
 
 added_actors = []
-
 plots = []
+
+# initialising folders
+
+if not os.path.exists("generated_files"):
+    os.mkdir("generated_files")
+
+os.chdir("generated_files")
+if not os.path.exists("csv"): os.mkdir("csv")
+if not os.path.exists("obj"): os.mkdir("obj")
+
+os.chdir("..")
 
 
 class MyMainWindow(MainWindow):
@@ -54,6 +66,7 @@ class MyMainWindow(MainWindow):
         # set up sidebar
         self.sidebar = MySidebar()
         self.addDockWidget(Qt.RightDockWidgetArea, self.sidebar)
+        self.sidebar.simulate.connect(self.simulate)
         self.sidebar.add_obj.connect(self.add_obj)
         self.sidebar.remove_objs.connect(self.remove_objs)
         self.sidebar.add_cube.connect(self.add_cube)
@@ -78,6 +91,21 @@ class MyMainWindow(MainWindow):
 
         if show:
             self.show()
+
+    def simulate(self):
+        """add simulation data from a csv file"""
+
+        # this script shows that the thing is being called correctly. i just find it funny
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Hello cocksuckers!")
+        dlg.resize(400, 200)
+        dlg.exec()
+
+
+        # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
+        os.chdir("generated_files/csv")
+        simulate.create_csv(id=1, no_of_sources=10, start_strength=10000, max_reflections=10)
+
 
     def add_sphere(self):
         """ add a sphere to the pyqt frame """
@@ -225,6 +253,7 @@ class MySidebar(QDockWidget):
 
     # custom signals
     toggle_plot = Signal(int, list)
+    simulate = Signal()
     add_sphere = Signal()
     add_cube = Signal()
     add_obj = Signal()
@@ -260,6 +289,8 @@ class MySidebar(QDockWidget):
 
 
         # sidebar objs
+        button_simulate = QPushButton("Add Simulation (csv)")
+        button_simulate.clicked.connect(self.simulate.emit)
         button_sphere = QPushButton("Add Sphere")
         button_sphere.clicked.connect(self.add_sphere.emit)
         button_cube = QPushButton("Add Cube")
@@ -272,6 +303,7 @@ class MySidebar(QDockWidget):
         button_parse_bsm.clicked.connect(self.parse_bsm.emit)
 
         sidebar_layout.addWidget(checkboxes_parent_widget)
+        sidebar_layout.addWidget(button_simulate)
         sidebar_layout.addWidget(button_sphere)
         sidebar_layout.addWidget(button_cube)
         sidebar_layout.addWidget(button_add_model)

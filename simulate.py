@@ -229,12 +229,10 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
     data = data.drop(data.index[indices])
     return data
 
-def create_csv(no_of_sources):
+def create_csv(id, no_of_sources, start_strength, max_reflections):
     for i in range(no_of_sources):
         #actual process
-        start_strength = 10000
-        max_reflections = 10
-        df = create_dataframe(1, sample_transmitter, sample_receiver, start_strength, max_reflections, normals)
+        df = create_dataframe(id, sample_transmitter, sample_receiver, start_strength, max_reflections, normals)
         if i==0:
             combined_df = df
         else:
@@ -258,4 +256,4 @@ sample_receiver = Receiver(np.array([0, 0, 0]), 0.5)
 #
 
 #create_dataframe(id=1, transmitter=sample_transmitter, receiver=sample_receiver, start_strength=10000, max_reflections=6, normals=normals)
-create_csv(1)
+create_csv(id=1, no_of_sources=1, start_strength=10000, max_reflections=10)

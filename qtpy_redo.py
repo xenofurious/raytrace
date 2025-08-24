@@ -1,11 +1,13 @@
 import sys
 
+from PyQt6.QtWidgets import QHBoxLayout, QSpinBox
 # Setting the Qt bindings for QtPy
 from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
-from qtpy.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QPushButton, QCheckBox, QFileDialog, QInputDialog, QLineEdit, QDialog
+from qtpy.QtWidgets import (QDockWidget, QWidget, QPushButton, QCheckBox, QFileDialog, QInputDialog, QLineEdit, QDialog, QInputDialog, QSpinBox, QLabel,
+                            QVBoxLayout, QHBoxLayout, QGridLayout)
 from qtpy.QtCore import Qt, Signal
 import pandas as pd
 import os
@@ -304,7 +306,20 @@ class SimulateDialog1(QDialog):
         self.receiver_no = 0
 
         self.setWindowTitle("simulation parameters")
-        self.
+        dialog_sim1_layout = QGridLayout()
+        transmitter_selection_label = QLabel("Number of transmitters (TX):")
+        receiver_selection_label = QLabel("Number of receivers(RX):")
+        transmitter_selection_widget = QSpinBox(minimum=1, maximum=20, value=1)
+        receiver_selection_widget = QSpinBox(minimum=1, maximum=20, value=1)
+        dialog_sim1_layout.addWidget(transmitter_selection_label, 0, 0)
+        dialog_sim1_layout.addWidget(receiver_selection_label, 1, 0)
+        dialog_sim1_layout.addWidget(transmitter_selection_widget, 0, 1)
+        dialog_sim1_layout.addWidget(receiver_selection_widget, 1, 1)
+
+
+        self.setLayout(dialog_sim1_layout)
+
+
 
 class SimulateDialog2(QDialog):
     def __init__(self):

@@ -1,12 +1,12 @@
 import sys
 
-from PyQt6.QtWidgets import QHBoxLayout, QSpinBox
+from PyQt6.QtWidgets import QHBoxLayout, QSpinBox, QDialogButtonBox
 # Setting the Qt bindings for QtPy
 from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
-from qtpy.QtWidgets import (QDockWidget, QWidget, QPushButton, QCheckBox, QFileDialog, QInputDialog, QLineEdit, QDialog, QInputDialog, QSpinBox, QLabel,
+from qtpy.QtWidgets import (QDockWidget, QWidget, QPushButton, QCheckBox, QFileDialog, QLineEdit, QDialog, QInputDialog, QSpinBox, QLabel,
                             QVBoxLayout, QHBoxLayout, QGridLayout)
 from qtpy.QtCore import Qt, Signal
 import pandas as pd
@@ -85,28 +85,32 @@ class MyMainWindow(MainWindow):
         global raytrace_data
         self.plotter.subplot(0, 0)
         root_projdir = os.getcwd()
-        # this script shows that the thing is being called correctly. i just find it funny
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Hello !")
-        dlg.resize(400, 200)
-        dlg.exec()
 
-        # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
-        os.chdir("generated_files/csv")
-        simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=1, start_strength=10000, max_reflections=10)
-        raytrace_data = pd.read_csv("generated_ray_data.csv")
+        dialog1 = SimulateDialog1()
+        if dialog1.exec():
 
-        # define the ray tracing data new parameters
-        unique_ids = raytrace_data["id"].unique()
+            transmitter_no, receiver_no = dialog1.get_values()
+            
+            # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
+            os.chdir("generated_files/csv")
+            simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=transmitter_no, start_strength=10000, max_reflections=10)
+            raytrace_data = pd.read_csv("generated_ray_data.csv")
 
-        # clear old plot and add new plot
-        self.plotter.remove_actor(self.plots)
-        plots = []
-        print(unique_ids)
-        for i in unique_ids:
-            subdataframe = raytrace_data[raytrace_data["id"] == i]
-            plots.append(self.plot_dataframe(subdataframe, i))
-        self.plots = plots
+            # define the ray tracing data new parameters
+            unique_ids = raytrace_data["id"].unique()
+
+            # clear old plot and add new plot
+            self.plotter.remove_actor(self.plots)
+            plots = []
+            for i in unique_ids:
+                subdataframe = raytrace_data[raytrace_data["id"] == i]
+                plots.append(self.plot_dataframe(subdataframe, i))
+            self.plots = plots
+
+        else:
+            print("your mother")
+
+
 
     def add_sphere(self):
         """ add a sphere to the pyqt frame """
@@ -304,20 +308,37 @@ class SimulateDialog1(QDialog):
         super().__init__()
         self.transmitter_no = 0
         self.receiver_no = 0
-
         self.setWindowTitle("simulation parameters")
+
+        widget_layout = QVBoxLayout()
+
+        # inputs
+        dialog_sim1_widget = QWidget()
         dialog_sim1_layout = QGridLayout()
         transmitter_selection_label = QLabel("Number of transmitters (TX):")
         receiver_selection_label = QLabel("Number of receivers(RX):")
-        transmitter_selection_widget = QSpinBox(minimum=1, maximum=20, value=1)
-        receiver_selection_widget = QSpinBox(minimum=1, maximum=20, value=1)
+        self.transmitter_selection_widget = QSpinBox(minimum=1, maximum=20, value=1)
+        self.receiver_selection_widget = QSpinBox(minimum=1, maximum=20, value=1)
         dialog_sim1_layout.addWidget(transmitter_selection_label, 0, 0)
         dialog_sim1_layout.addWidget(receiver_selection_label, 1, 0)
-        dialog_sim1_layout.addWidget(transmitter_selection_widget, 0, 1)
-        dialog_sim1_layout.addWidget(receiver_selection_widget, 1, 1)
+        dialog_sim1_layout.addWidget(self.transmitter_selection_widget, 0, 1)
+        dialog_sim1_layout.addWidget(self.receiver_selection_widget, 1, 1)
+
+        dialog_sim1_widget.setLayout(dialog_sim1_layout)
+        widget_layout.addWidget(dialog_sim1_widget)
+
+        # okay and cancel buttons
+        button_widget = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_widget.accepted.connect(self.accept)
+        button_widget.rejected.connect(self.reject)
+        widget_layout.addWidget(button_widget)
 
 
-        self.setLayout(dialog_sim1_layout)
+
+        self.setLayout(widget_layout)
+
+    def get_values(self):
+        return self.transmitter_selection_widget.value(), self.receiver_selection_widget.value()
 
 
 

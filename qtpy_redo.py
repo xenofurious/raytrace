@@ -7,7 +7,7 @@ import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
 from qtpy.QtWidgets import (QDockWidget, QWidget, QPushButton, QCheckBox, QFileDialog, QLineEdit, QDialog, QInputDialog, QSpinBox, QLabel,
-                            QVBoxLayout, QHBoxLayout, QGridLayout)
+                            QVBoxLayout, QHBoxLayout, QGridLayout, QFrame)
 from qtpy.QtCore import Qt, Signal
 import pandas as pd
 import os
@@ -43,8 +43,8 @@ class MyMainWindow(MainWindow):
         self.resize(1000, 700)
 
         # create the frame
-        self.frame = QtWidgets.QFrame()
-        vlayout = QtWidgets.QVBoxLayout()
+        self.frame = QFrame()
+        vlayout = QVBoxLayout()
 
         # add the pyvista interactor object
         self.plotter = QtInteractor(self.frame, shape=(2, 2))
@@ -90,23 +90,30 @@ class MyMainWindow(MainWindow):
         if dialog1.exec():
 
             transmitter_no, receiver_no = dialog1.get_values()
-            
-            # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
-            os.chdir("generated_files/csv")
-            simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=transmitter_no, start_strength=10000, max_reflections=10)
-            raytrace_data = pd.read_csv("generated_ray_data.csv")
 
-            # define the ray tracing data new parameters
-            unique_ids = raytrace_data["id"].unique()
+            dialog2 = SimulateDialog2(transmitter_no, receiver_no)
+            if dialog2.exec():
+                # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
+                os.chdir("generated_files/csv")
+                simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=transmitter_no, start_strength=10000, max_reflections=10)
+                raytrace_data = pd.read_csv("generated_ray_data.csv")
 
-            # clear old plot and add new plot
-            self.plotter.remove_actor(self.plots)
-            plots = []
-            for i in unique_ids:
-                subdataframe = raytrace_data[raytrace_data["id"] == i]
-                plots.append(self.plot_dataframe(subdataframe, i))
-            self.plots = plots
+                # define the ray tracing data new parameters
+                unique_ids = raytrace_data["id"].unique()
 
+                # clear old plot and add new plot
+                self.plotter.remove_actor(self.plots)
+                plots = []
+                for i in unique_ids:
+                    subdataframe = raytrace_data[raytrace_data["id"] == i]
+                    plots.append(self.plot_dataframe(subdataframe, i))
+                self.plots = plots
+
+
+
+
+            else:
+                print("your mother 2")
         else:
             print("your mother")
 
@@ -332,9 +339,6 @@ class SimulateDialog1(QDialog):
         button_widget.accepted.connect(self.accept)
         button_widget.rejected.connect(self.reject)
         widget_layout.addWidget(button_widget)
-
-
-
         self.setLayout(widget_layout)
 
     def get_values(self):
@@ -343,8 +347,74 @@ class SimulateDialog1(QDialog):
 
 
 class SimulateDialog2(QDialog):
-    def __init__(self):
+    def __init__(self, transmitter_no, receiver_no):
         super().__init__()
+        self.transmitter_no = transmitter_no
+        self.receiver_no = receiver_no
+
+
+        #self.model =
+        self.receiver_id = []
+        self.receiver_start_pos = []
+        self.receiver_start_strength = []
+        self.max_reflection = []
+
+
+        dialog_layout = QHBoxLayout()
+        dialog_layout.addWidget(SimulateDialog2SidebarThing(transmitter_no, receiver_no))
+        plotter_preview_window = QtInteractor()
+        plotter_preview_window.add_mesh(pv.Sphere())
+        dialog_layout.addWidget(plotter_preview_window)
+
+
+
+
+        self.setLayout(dialog_layout)
+
+    def get_values(self):
+        return "AHHHHHH MY GAWD"
+
+
+class SimulateDialog2SidebarThing(QWidget):
+    def __init__(self, transmitter_no, receiver_no):
+        super().__init__()
+        self.transmitter_no = transmitter_no
+        self.receiver_no = receiver_no
+        dialog_layout = QVBoxLayout()
+        button_add_model = QPushButton("Add a .obj file to the right hand side to adjust location of simulation")
+        dialog_layout.addWidget(button_add_model)
+
+        simulate_dialog2_container = QWidget()
+        simulate_dialog2_layout = QHBoxLayout()
+
+        transmitter_container = QWidget()
+        receiver_container = QWidget()
+        transmitter_container_layout = QVBoxLayout()
+        receiver_container_layout = QVBoxLayout()
+
+
+        transmitter_container_layout.addWidget(QPushButton("deez nuts"))
+        receiver_container_layout.addWidget(QPushButton("deez nuts"))
+        transmitter_container.setLayout(transmitter_container_layout)
+        receiver_container.setLayout(receiver_container_layout)
+
+
+        simulate_dialog2_layout.addWidget(transmitter_container)
+        simulate_dialog2_layout.addWidget(receiver_container)
+        simulate_dialog2_container.setLayout(simulate_dialog2_layout)
+
+
+        dialog_layout.addWidget(simulate_dialog2_container)
+
+        self.setLayout(dialog_layout)
+
+
+
+
+    def add_obj(self):
+        """the code for this should be nigh identical to what i have in the main window btdubs"""
+        pass
+
 
 
 

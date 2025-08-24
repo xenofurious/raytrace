@@ -9,12 +9,6 @@ c = 299792458
 ray_advance = 20
 model_used = "models/cube.obj"
 
-mesh = trimesh.load_mesh(model_used, process=True)
-if isinstance(mesh, trimesh.Scene):
-    mesh = trimesh.util.concatenate(mesh.dump())
-mesh.ray = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
-normals = mesh.face_normals
-
 
 
 class Transmitter:
@@ -94,7 +88,13 @@ def calculate_sphere_collision_points_from_distance(previous_points_, new_direct
     sphere_collision_points = previous_points + new_directions * distance[:, None]
     return sphere_collision_points
 
-def create_dataframe(id, transmitter, receiver, start_strength, max_reflections, normals):
+def create_dataframe(id, model_used, transmitter, receiver, start_strength, max_reflections):
+
+    mesh = trimesh.load_mesh(model_used, process=True)
+    if isinstance(mesh, trimesh.Scene):
+        mesh = trimesh.util.concatenate(mesh.dump())
+    mesh.ray = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
+    normals = mesh.face_normals
 
     no_of_rays = transmitter.no_of_rays
     start_point = transmitter.location
@@ -220,19 +220,17 @@ def create_dataframe(id, transmitter, receiver, start_strength, max_reflections,
 
     indices = np.where(np.isnan(end_points_arr).any(axis=1))[0]
     end_points_list = list(map(package_coord, end_points_arr.tolist()))
-    print(end_points_list)
     data['end_strength'] = (data['start_strength']-distance_arr*signal_factor).tolist() # alter later to match a realistic simulation model
     data['traversal_time_ns'] = (distance_arr*(10**9)/c).tolist()
     data = pd.DataFrame(data)
     data['end_point'] = end_points_list
-    print(indices)
     data = data.drop(data.index[indices])
     return data
 
-def create_csv(id, no_of_sources, start_strength, max_reflections):
+def create_csv(id, model_used, no_of_sources, start_strength, max_reflections):
     for i in range(no_of_sources):
         #actual process
-        df = create_dataframe(id, sample_transmitter, sample_receiver, start_strength, max_reflections, normals)
+        df = create_dataframe(id, model_used, sample_transmitter, sample_receiver, start_strength, max_reflections)
         if i==0:
             combined_df = df
         else:
@@ -256,4 +254,4 @@ sample_receiver = Receiver(np.array([0, 0, 0]), 0.5)
 #
 
 #create_dataframe(id=1, transmitter=sample_transmitter, receiver=sample_receiver, start_strength=10000, max_reflections=6, normals=normals)
-create_csv(id=1, no_of_sources=1, start_strength=10000, max_reflections=10)
+create_csv(id=1, model_used=model_used, no_of_sources=1, start_strength=10000, max_reflections=10)

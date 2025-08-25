@@ -95,7 +95,7 @@ class MyMainWindow(MainWindow):
             if dialog2.exec():
                 # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
                 os.chdir("generated_files/csv")
-                simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=transmitter_no, start_strength=10000, max_reflections=10)
+                simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=1, start_strength=10000, max_reflections=10)
                 raytrace_data = pd.read_csv("generated_ray_data.csv")
 
                 # define the ray tracing data new parameters
@@ -361,23 +361,26 @@ class SimulateDialog2(QDialog):
 
 
         dialog_layout = QHBoxLayout()
-        dialog_layout.addWidget(SimulateDialog2SidebarThing(transmitter_no, receiver_no))
+        sidebar_thing = SimulateDialog2SidebarThing(transmitter_no, receiver_no, self)
+        dialog_layout.addWidget(sidebar_thing)
+
         plotter_preview_window = QtInteractor()
         plotter_preview_window.add_mesh(pv.Sphere())
         dialog_layout.addWidget(plotter_preview_window)
-
-
-
 
         self.setLayout(dialog_layout)
 
     def get_values(self):
         return "AHHHHHH MY GAWD"
 
+    def add_obj(self):
+        """the code for this should be nigh identical to what i have in the main window btdubs"""
+        pass
+
 
 class SimulateDialog2SidebarThing(QWidget):
-    def __init__(self, transmitter_no, receiver_no):
-        super().__init__()
+    def __init__(self, transmitter_no, receiver_no, parent=None):
+        super().__init__(parent)
         self.transmitter_no = transmitter_no
         self.receiver_no = receiver_no
         dialog_layout = QVBoxLayout()
@@ -392,30 +395,64 @@ class SimulateDialog2SidebarThing(QWidget):
         transmitter_container_layout = QVBoxLayout()
         receiver_container_layout = QVBoxLayout()
 
-
         transmitter_container_layout.addWidget(QPushButton("deez nuts"))
+        transmitter_container_layout.addWidget(TransmitterInputBox(1))
         receiver_container_layout.addWidget(QPushButton("deez nuts"))
         transmitter_container.setLayout(transmitter_container_layout)
         receiver_container.setLayout(receiver_container_layout)
-
 
         simulate_dialog2_layout.addWidget(transmitter_container)
         simulate_dialog2_layout.addWidget(receiver_container)
         simulate_dialog2_container.setLayout(simulate_dialog2_layout)
 
+        button_widget = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_widget.accepted.connect(parent.accept)
+        button_widget.rejected.connect(parent.reject)
 
         dialog_layout.addWidget(simulate_dialog2_container)
+        dialog_layout.addWidget(button_widget)
 
         self.setLayout(dialog_layout)
 
+class TransmitterInputBox(QWidget):
+    def __init__(self, default_id):
+        super().__init__()
+        self.default_id = default_id
+
+
+        transmitter_input_box_layout = QGridLayout()
+        id_label = QLabel("id:")
+        position_label = QLabel("position")
+        transmission_label = QLabel("transmission")
+        direction_label = QLabel("direction")
+        no_of_rays_label = QLabel("no of rays")
+        no_of_reflections_label = QLabel("no_of_reflections")
+
+        transmitter_input_box_layout.addWidget(id_label, 0, 0)
+        self.id_input = QSpinBox(minimum=1, maximum=20, value=default_id)
+        transmitter_input_box_layout.addWidget(self.id_input, 0, 1)
+
+        transmitter_input_box_layout.addWidget(position_label, 1, 0)
+
+
+        transmitter_input_box_layout.addWidget(transmission_label, 2, 0)
+
+
+        transmitter_input_box_layout.addWidget(direction_label, 3, 0)
+
+
+        transmitter_input_box_layout.addWidget(no_of_rays_label, 4, 0)
+
+
+        transmitter_input_box_layout.addWidget(no_of_reflections_label, 5, 0)
 
 
 
-    def add_obj(self):
-        """the code for this should be nigh identical to what i have in the main window btdubs"""
-        pass
+        self.setLayout(transmitter_input_box_layout)
 
-
+class ReceiverInputBox(QWidget):
+    def __init__(self):
+        super().__init__()
 
 
 def parse_coord_data(coords):

@@ -6,7 +6,7 @@ from qtpy import QtWidgets
 import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
-from qtpy.QtWidgets import (QDockWidget, QWidget, QPushButton, QCheckBox, QFileDialog, QLineEdit, QDialog, QInputDialog, QSpinBox, QLabel,
+from qtpy.QtWidgets import (QDockWidget, QWidget, QPushButton, QCheckBox, QFileDialog, QLineEdit, QDialog, QInputDialog, QSpinBox, QDoubleSpinBox, QLabel,
                             QVBoxLayout, QHBoxLayout, QGridLayout, QFrame)
 from qtpy.QtCore import Qt, Signal
 import pandas as pd
@@ -395,10 +395,10 @@ class SimulateDialog2SidebarThing(QWidget):
         transmitter_container_layout = QVBoxLayout()
         receiver_container_layout = QVBoxLayout()
 
-        transmitter_container_layout.addWidget(QPushButton("deez nuts"))
         transmitter_container_layout.addWidget(TransmitterInputBox(1))
-        receiver_container_layout.addWidget(QPushButton("deez nuts"))
         transmitter_container.setLayout(transmitter_container_layout)
+
+        receiver_container_layout.addWidget(ReceiverInputBox())
         receiver_container.setLayout(receiver_container_layout)
 
         simulate_dialog2_layout.addWidget(transmitter_container)
@@ -419,41 +419,97 @@ class TransmitterInputBox(QWidget):
         super().__init__()
         self.default_id = default_id
 
-
         transmitter_input_box_layout = QGridLayout()
-        id_label = QLabel("id:")
-        position_label = QLabel("position")
-        transmission_label = QLabel("transmission")
-        direction_label = QLabel("direction")
-        no_of_rays_label = QLabel("no of rays")
-        no_of_reflections_label = QLabel("no_of_reflections")
 
+        # id
+        id_label = QLabel("id:")
         transmitter_input_box_layout.addWidget(id_label, 0, 0)
+
         self.id_input = QSpinBox(minimum=1, maximum=20, value=default_id)
         transmitter_input_box_layout.addWidget(self.id_input, 0, 1)
 
+        # position
+        position_label = QLabel("position:")
         transmitter_input_box_layout.addWidget(position_label, 1, 0)
 
+        pos_input = CoordinateInputTemplate()
+        transmitter_input_box_layout.addWidget(pos_input, 1, 1)
 
+        # transmission
+        transmission_label = QLabel("transmission:")
         transmitter_input_box_layout.addWidget(transmission_label, 2, 0)
 
-
+        # direction
+        direction_label = QLabel("direction:")
         transmitter_input_box_layout.addWidget(direction_label, 3, 0)
 
+        direction_input = CoordinateInputTemplate()
+        transmitter_input_box_layout.addWidget(direction_input, 3, 1)
 
+
+        # no of rays
+        no_of_rays_label = QLabel("no of rays:")
         transmitter_input_box_layout.addWidget(no_of_rays_label, 4, 0)
 
+        self.no_of_rays_input = QSpinBox(minimum=1, maximum=1000, value=1)
+        transmitter_input_box_layout.addWidget(self.no_of_rays_input, 4, 1)
 
+        # no of reflections
+        no_of_reflections_label = QLabel("no_of_reflections:")
         transmitter_input_box_layout.addWidget(no_of_reflections_label, 5, 0)
 
+        self.no_of_reflections_input = QSpinBox(minimum=1, maximum=1000, value=1)
+        transmitter_input_box_layout.addWidget(self.no_of_reflections_input, 5, 1)
 
-
+        # end
         self.setLayout(transmitter_input_box_layout)
 
 class ReceiverInputBox(QWidget):
     def __init__(self):
         super().__init__()
 
+        receiver_input_box_layout = QGridLayout()
+
+        # position
+        position_label = QLabel("position:")
+        receiver_input_box_layout.addWidget(position_label, 0, 0)
+
+        pos_input = CoordinateInputTemplate()
+        receiver_input_box_layout.addWidget(pos_input, 0, 1)
+
+        # radius
+        radius_label = QLabel("radius:")
+        receiver_input_box_layout.addWidget(radius_label, 1, 0)
+
+        radius_input = QDoubleSpinBox()
+        receiver_input_box_layout.addWidget(radius_input, 1, 1)
+
+        self.setLayout(receiver_input_box_layout)
+
+class CoordinateSpinBox(QDoubleSpinBox):
+    def __init__(self):
+        super().__init__()
+        self.setRange(-10000, 10000)
+        self.setSingleStep(1)
+        self.setDecimals(3)
+
+class CoordinateInputTemplate(QWidget):
+    def __init__(self):
+        super().__init__()
+        template_layout = QHBoxLayout()
+
+        self.x = CoordinateSpinBox()
+        self.y = CoordinateSpinBox()
+        self.z = CoordinateSpinBox()
+
+        template_layout.addWidget(self.x)
+        template_layout.addWidget(self.y)
+        template_layout.addWidget(self.z)
+
+        self.setLayout(template_layout)
+
+    def get_values(self):
+        return "deez nuts"
 
 def parse_coord_data(coords):
     coords = coords.strip(')(').split(')(')

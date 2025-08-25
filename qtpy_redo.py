@@ -1,4 +1,5 @@
 import sys
+from pickletools import bytes_types
 
 from PyQt6.QtWidgets import QHBoxLayout, QSpinBox, QDialogButtonBox
 # Setting the Qt bindings for QtPy
@@ -94,6 +95,17 @@ class MyMainWindow(MainWindow):
             dialog2 = SimulateDialog2(transmitter_no, receiver_no)
             if dialog2.exec():
                 # okay now for it to call simulate.py and generate a csv file called generated_ray_data.csv
+                transmitter_id_input, transmitter_pos_input_transmitter, transmitter_direction_input, transmitter_no_of_rays_input, transmitter_no_of_reflections_input = dialog2.transmitter_get_values()
+                receiver_pos_input, receiver_radius = dialog2.receiver_get_values()
+                print("id input = ", transmitter_id_input)
+                print("pos input = ", transmitter_pos_input_transmitter)
+                print("direction input = ", transmitter_direction_input)
+                print("no of rays input = ", transmitter_no_of_rays_input)
+                print("no of reflections input = ", transmitter_no_of_reflections_input)
+                print("------------------")
+                print("receiver pos input = ", receiver_pos_input)
+                print("receiver radius = ", receiver_radius)
+
                 os.chdir("generated_files/csv")
                 simulate.create_csv(id=1, model_used=root_projdir+"/models/cube.obj", no_of_sources=1, start_strength=10000, max_reflections=10)
                 raytrace_data = pd.read_csv("generated_ray_data.csv")
@@ -352,17 +364,19 @@ class SimulateDialog2(QDialog):
         self.transmitter_no = transmitter_no
         self.receiver_no = receiver_no
 
-
+        self.setWindowTitle("more simulation parameters")
         #self.model =
         self.receiver_id = []
         self.receiver_start_pos = []
+        self.transmission_type = ""
+        self.transmission_direction = "random"
         self.receiver_start_strength = []
         self.max_reflection = []
 
 
         dialog_layout = QHBoxLayout()
-        sidebar_thing = SimulateDialog2SidebarThing(transmitter_no, receiver_no, self)
-        dialog_layout.addWidget(sidebar_thing)
+        self.sidebar_thing = SimulateDialog2SidebarThing(transmitter_no, receiver_no, self)
+        dialog_layout.addWidget(self.sidebar_thing)
 
         plotter_preview_window = QtInteractor()
         plotter_preview_window.add_mesh(pv.Sphere())
@@ -370,8 +384,13 @@ class SimulateDialog2(QDialog):
 
         self.setLayout(dialog_layout)
 
-    def get_values(self):
-        return "AHHHHHH MY GAWD"
+    def transmitter_get_values(self):
+        self.transmitter_id_input, self.transmitter_pos_input, self.transmitter_direction_input, self.transmitter_no_of_rays_input, self.transmitter_no_of_reflections_input = self.sidebar_thing.transmitter_get_values()
+        return self.transmitter_id_input, self.transmitter_pos_input, self.transmitter_direction_input, self.transmitter_no_of_rays_input, self.transmitter_no_of_reflections_input
+
+    def receiver_get_values(self):
+        self.receiver_pos_input, self.receiver_radius = self.sidebar_thing.receiver_get_values()
+        return self.receiver_pos_input, self.receiver_radius
 
     def add_obj(self):
         """the code for this should be nigh identical to what i have in the main window btdubs"""
@@ -379,12 +398,17 @@ class SimulateDialog2(QDialog):
 
 
 class SimulateDialog2SidebarThing(QWidget):
+
+    add_model = Signal()
+
     def __init__(self, transmitter_no, receiver_no, parent=None):
         super().__init__(parent)
         self.transmitter_no = transmitter_no
         self.receiver_no = receiver_no
+
         dialog_layout = QVBoxLayout()
         button_add_model = QPushButton("Add a .obj file to the right hand side to adjust location of simulation")
+        button_add_model.clicked.connect(self.add_model.emit)
         dialog_layout.addWidget(button_add_model)
 
         simulate_dialog2_container = QWidget()
@@ -395,10 +419,12 @@ class SimulateDialog2SidebarThing(QWidget):
         transmitter_container_layout = QVBoxLayout()
         receiver_container_layout = QVBoxLayout()
 
-        transmitter_container_layout.addWidget(TransmitterInputBox(1))
+        self.transmitter_input_box  = TransmitterInputBox(1)
+        transmitter_container_layout.addWidget(self.transmitter_input_box)
         transmitter_container.setLayout(transmitter_container_layout)
 
-        receiver_container_layout.addWidget(ReceiverInputBox())
+        self.receiver_input_box = ReceiverInputBox()
+        receiver_container_layout.addWidget(self.receiver_input_box)
         receiver_container.setLayout(receiver_container_layout)
 
         simulate_dialog2_layout.addWidget(transmitter_container)
@@ -413,6 +439,15 @@ class SimulateDialog2SidebarThing(QWidget):
         dialog_layout.addWidget(button_widget)
 
         self.setLayout(dialog_layout)
+
+    def transmitter_get_values(self):
+        self.id_input, self.pos_input, self.direction_input, self.no_of_rays_input, self.no_of_reflections_input = self.transmitter_input_box.get_values()
+        return self.id_input, self.pos_input, self.direction_input, self.no_of_rays_input, self.no_of_reflections_input
+
+    def receiver_get_values(self):
+        self.receiver_pos_input, self.receiver_radius = self.receiver_input_box.get_values()
+        return self.receiver_pos_input, self.receiver_radius
+
 
 class TransmitterInputBox(QWidget):
     def __init__(self, default_id):
@@ -432,19 +467,21 @@ class TransmitterInputBox(QWidget):
         position_label = QLabel("position:")
         transmitter_input_box_layout.addWidget(position_label, 1, 0)
 
-        pos_input = CoordinateInputTemplate()
-        transmitter_input_box_layout.addWidget(pos_input, 1, 1)
+        self.pos_input = CoordinateInputTemplate()
+        transmitter_input_box_layout.addWidget(self.pos_input, 1, 1)
 
         # transmission
         transmission_label = QLabel("transmission:")
         transmitter_input_box_layout.addWidget(transmission_label, 2, 0)
 
+        # some stuff goes here? idk.
+
         # direction
         direction_label = QLabel("direction:")
         transmitter_input_box_layout.addWidget(direction_label, 3, 0)
 
-        direction_input = CoordinateInputTemplate()
-        transmitter_input_box_layout.addWidget(direction_input, 3, 1)
+        self.direction_input = CoordinateInputTemplate()
+        transmitter_input_box_layout.addWidget(self.direction_input, 3, 1)
 
 
         # no of rays
@@ -455,14 +492,25 @@ class TransmitterInputBox(QWidget):
         transmitter_input_box_layout.addWidget(self.no_of_rays_input, 4, 1)
 
         # no of reflections
-        no_of_reflections_label = QLabel("no_of_reflections:")
+        no_of_reflections_label = QLabel("no of reflections:")
         transmitter_input_box_layout.addWidget(no_of_reflections_label, 5, 0)
 
         self.no_of_reflections_input = QSpinBox(minimum=1, maximum=1000, value=1)
         transmitter_input_box_layout.addWidget(self.no_of_reflections_input, 5, 1)
 
+        # start strength
+        start_strength_label = QLabel("start strength:")
+        transmitter_input_box_layout.addWidget(start_strength_label, 6, 0)
+
+        self.start_strength_input = QDoubleSpinBox(minimum=0, maximum=1000000, singleStep=10, decimals=3, value=10000)
+        transmitter_input_box_layout.addWidget(self.start_strength_input, 6, 1)
+
         # end
         self.setLayout(transmitter_input_box_layout)
+
+    def get_values(self):
+        return self.id_input.value(), self.pos_input.get_values(), self.direction_input.get_values(), self.no_of_rays_input.value(), self.no_of_reflections_input.value()
+
 
 class ReceiverInputBox(QWidget):
     def __init__(self):
@@ -474,17 +522,22 @@ class ReceiverInputBox(QWidget):
         position_label = QLabel("position:")
         receiver_input_box_layout.addWidget(position_label, 0, 0)
 
-        pos_input = CoordinateInputTemplate()
-        receiver_input_box_layout.addWidget(pos_input, 0, 1)
+        self.pos_input = CoordinateInputTemplate()
+        receiver_input_box_layout.addWidget(self.pos_input, 0, 1)
 
         # radius
         radius_label = QLabel("radius:")
         receiver_input_box_layout.addWidget(radius_label, 1, 0)
 
-        radius_input = QDoubleSpinBox()
-        receiver_input_box_layout.addWidget(radius_input, 1, 1)
+        self.radius_input = QDoubleSpinBox()
+        receiver_input_box_layout.addWidget(self.radius_input, 1, 1)
 
         self.setLayout(receiver_input_box_layout)
+
+    def get_values(self):
+        return self.pos_input.get_values(), self.radius_input.value()
+
+
 
 class CoordinateSpinBox(QDoubleSpinBox):
     def __init__(self):
@@ -509,7 +562,11 @@ class CoordinateInputTemplate(QWidget):
         self.setLayout(template_layout)
 
     def get_values(self):
-        return "deez nuts"
+        x_val = self.x.value()
+        y_val = self.y.value()
+        z_val = self.z.value()
+        values = np.array([x_val, y_val, z_val])
+        return values
 
 def parse_coord_data(coords):
     coords = coords.strip(')(').split(')(')
